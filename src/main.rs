@@ -35,9 +35,6 @@ fn validate_array(arr: [i16; 48000]) -> bool {
     }
     return true;
 }
-// thread 0 does 0
-// thread 1 does 1
-// thread 0 does 2
 
 fn validate_array_parallel(arr: [i16; 48000]) -> bool {
     // try slices.chunks https://doc.rust-lang.org/std/primitive.slice.html#method.chunks
@@ -56,7 +53,6 @@ fn validate_array_parallel(arr: [i16; 48000]) -> bool {
     })
 }
 
-// change to 128b
 fn validate_array_simd(arr: [i16; 48000]) -> bool {
     let a = i16x4::from_array([1, 1, 1, 1]);
     let b = i16x4::from_array([-1, -1, -1, -1]);
@@ -183,6 +179,57 @@ fn validate_array_simd_bigger(arr: [i16; 48000]) -> bool {
     return true;
 }
 
+fn validate_array_branch_free(arr: [i16; 48000]) -> bool {
+    let lookup = [1, -1, 0, 0, 0];
+    for i in 0..48000 {
+        let expected = lookup[(i % 250) / 50];
+        if arr[i] != expected {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn validate_array_simd_branch_free_1(arr: [i16; 48000]) -> bool {
+    let lookup = [1, -1, 0, 0, 0];
+    for i in 0..12000 {
+        let x = i16x4::from_array([
+            arr[i],
+            arr[i + 12000],
+            arr[i + 24000],
+            arr[i + 36000],
+        ]);
+        let should_equal_val = lookup[(i % 250) / 50];
+        let should_equal = i16x4::from_array([should_equal_val, should_equal_val, should_equal_val, should_equal_val]);
+        if x != should_equal {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn validate_array_simd_branch_free_2(arr: [i16; 48000]) -> bool {
+    let a = i16x4::from_array([1, 1, 1, 1]);
+    let b = i16x4::from_array([-1, -1, -1, -1]);
+    let c = i16x4::from_array([0, 0, 0, 0]);
+    let lookup = [a, b, c, c, c];
+    for i in 0..12000 {
+        let x = i16x4::from_array([
+            arr[i],
+            arr[i + 12000],
+            arr[i + 24000],
+            arr[i + 36000],
+        ]);
+        let should_equal_index = (i % 250) / 50;
+        let should_equal = lookup[should_equal_index];
+        if x != should_equal {
+            return false;
+        }
+    }
+    return true;
+}
+
+
 fn main() {
     let x = timeit(|| validate_array(input::MY_ARRAY));
     println!("serial result {}", x);
@@ -194,21 +241,12 @@ fn main() {
     println!("simd result cached {}", a);
     let b = timeit(|| validate_array_simd_bigger(input::MY_ARRAY));
     println!("simd result bigger width {}", b);
-    ////////////////////////////////
-    // Create two vectors of i32 values
-    // let a = i16x4::from_array([1, 2, 3, 4]);
-    // let b = i16x4::from_array([5, 6, 7, 8]);
-
-    // // Perform SIMD operations on the vectors
-    // let c = a + b; // => i16x4::new(6, 8, 10, 12)
-    // let d = a * b; // => i16x4::new(5, 12, 21, 32)
-
-    // // You can also use the u32x4 and i32x8/u32x8 types for
-    // // unsigned 32-bit integers and longer vectors, respectively
-
-    // // The values in the vector are stored in registers, which you
-    // // can access using the `.0`, `.1`, `.2`, and `.3` fields:
-    // println!("{:?}", c.as_array());
+    let c = timeit(|| validate_array_branch_free(input::MY_ARRAY));
+    println!("serial branch free {}", c);
+    let d = timeit(|| validate_array_simd_branch_free_1(input::MY_ARRAY));
+    println!("simd branch free lookup small {}", d);
+    let e = timeit(|| validate_array_simd_branch_free_2(input::MY_ARRAY));
+    println!("simd branch free lookup large {}", e);
 }
 
 fn timeit<F: Fn() -> T, T>(f: F) -> T {
