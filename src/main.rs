@@ -9,7 +9,7 @@
 #![feature(exclusive_range_pattern)]
 #![feature(portable_simd)]
 
-use std::simd::i16x4;
+use std::simd::{i16x4, i16x8};
 
 mod input;
 
@@ -40,7 +40,7 @@ fn validate_array(arr: [i16; 48000]) -> bool {
 // thread 0 does 2
 
 fn validate_array_parallel(arr: [i16; 48000]) -> bool {
-    // try slices.chunks https://doc.rust-lang.org/std/primitive.slice.html#method.chunks 
+    // try slices.chunks https://doc.rust-lang.org/std/primitive.slice.html#method.chunks
     (0..48000).into_par_iter().all(|i| {
         match i % 250 {
             0..50 => {
@@ -150,6 +150,39 @@ fn validate_array_simd_cache(arr: [i16; 48000]) -> bool {
     return true;
 }
 
+fn validate_array_simd_bigger(arr: [i16; 48000]) -> bool {
+    let a = i16x8::from_array([1, 1, 1, 1, 1, 1, 1, 1]);
+    let b = i16x8::from_array([-1, -1, -1, -1, -1, -1, -1, -1]);
+    let c = i16x8::from_array([0, 0, 0, 0, 0, 0, 0, 0]);
+    for i in 0..6000 {
+        let x = i16x8::from_array([
+            arr[i],
+            arr[i + 6000],
+            arr[i + 12000],
+            arr[i + 18000],
+            arr[i + 24000],
+            arr[i + 32000],
+            arr[i + 36000],
+            arr[i + 42000],
+        ]);
+        let should_equal = match i % 250 {
+            0..50 => {
+                a
+            },
+            50..100 => {
+                b
+            },
+            _ => {
+                c
+            }
+        };
+        if x != should_equal {
+            return false;
+        }
+    }
+    return true;
+}
+
 fn main() {
     let x = timeit(|| validate_array(input::MY_ARRAY));
     println!("serial result {}", x);
@@ -159,7 +192,8 @@ fn main() {
     println!("simd result {}", z);
     let a = timeit(|| validate_array_simd_cache(input::MY_ARRAY));
     println!("simd result cached {}", a);
-
+    let b = timeit(|| validate_array_simd_bigger(input::MY_ARRAY));
+    println!("simd result bigger width {}", b);
     ////////////////////////////////
     // Create two vectors of i32 values
     // let a = i16x4::from_array([1, 2, 3, 4]);
