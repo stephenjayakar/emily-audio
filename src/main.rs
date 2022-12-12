@@ -3,6 +3,9 @@
 // 192 chunks
 // 8 threads
 
+// 50 1s, 50 -1s, 150 0s.
+// 48000
+
 #![feature(exclusive_range_pattern)]
 #![feature(portable_simd)]
 
@@ -37,6 +40,7 @@ fn validate_array(arr: [i16; 48000]) -> bool {
 // thread 0 does 2
 
 fn validate_array_parallel(arr: [i16; 48000]) -> bool {
+    // try slices.chunks https://doc.rust-lang.org/std/primitive.slice.html#method.chunks 
     (0..48000).into_par_iter().all(|i| {
         match i % 250 {
             0..50 => {
@@ -52,6 +56,7 @@ fn validate_array_parallel(arr: [i16; 48000]) -> bool {
     })
 }
 
+// change to 128b
 fn validate_array_simd(arr: [i16; 48000]) -> bool {
     let a = i16x4::from_array([1, 1, 1, 1]);
     let b = i16x4::from_array([-1, -1, -1, -1]);
