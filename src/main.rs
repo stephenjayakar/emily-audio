@@ -108,42 +108,43 @@ fn validate_array_simd_cache(arr: [i16; 48000]) -> bool {
     let e = i16x4::from_array([0, 0, 1, 1]);
     let f = i16x4::from_array([-1, -1, 0, 0]);
     for i in (0..48000).step_by(4) {
-        let x = i16x4::from_slice(&arr[i..i+4]);
-        let y = match i % 500 {
-            0..48 => {
-                a
-            },
-            48 => {
-                d
-            },
-            49..100 => {
-                b
-            },
-            100..248 => {
-                c
-            },
-            248 => {
-                e
-            },
-            252..300 => {
-                a
-            },
-            300..348 => {
-                b
-            },
-            348 => {
-                f
-            },
-            352..500 => {
-                c
+        unsafe {
+            let x = i16x4::from_slice(&arr.get_unchecked(i..i+4));
+            let y = match i % 500 {
+                0..48 => {
+                    a
+                },
+                48 => {
+                    d
+                },
+                49..100 => {
+                    b
+                },
+                100..248 => {
+                    c
+                },
+                248 => {
+                    e
+                },
+                252..300 => {
+                    a
+                },
+                300..348 => {
+                    b
+                },
+                348 => {
+                    f
+                },
+                352..500 => {
+                    c
+                }
+                _ => {
+                    std::hint::unreachable_unchecked()
+                }
+            };
+            if x != y {
+                return false;
             }
-            _ => {
-                panic!()
-            }
-        };
-        if x != y {
-            println!("{}",i);
-            return false;
         }
     };
     return true;
